@@ -14,6 +14,69 @@ from coresense_msgs.action import QueryReasoner
 import os, socket
 from ament_index_python.packages import get_package_prefix
 
+from enum import Enum
+
+class Code(Enum):
+    UNKNOWN              = (0, "Unknown") # If this is returned, I need to investigate the case and assign a better code to it eventually
+
+    SUCCESS_PROOF        = (1, "Successfully shown Theorem/Unsatisfiability, proof/answer should be available in result (depending on invocation)")
+    SUCCESS_SATURATION   = (2, "Successfully (finitely) saturated the input, showing Non-theoremhood/Satisfiability")
+
+    TIME_LIMIT           = (3, "Time limit reached")
+    INSTR_LIMIT          = (4, "Instruction limit reached")
+    MEMORY_LIMIT         = (5, "Memory limit reached")
+    ACTIVATION_LIMIT     = (6, "Activation limit reached")
+    INAPPROPRIATE        = (7, "Inappropriate strategy used (e.g. finite model finding currently does not support arithmetic domains)")
+    VAMPIRES_UNKNOWN     = (8, "Vampire's internal UNKNOWN value for termination reason; should be debugged in Vampire")
+    INCOMPLETE_STRATEGY  = (9, "Vampire used an incomplete strategy and failed to resolve the problem")
+
+    CANCELLED            = (10, "The ROS2 action being cancelled before finishing")
+
+    # VAMP_RESULT_STATUS_INTERRUPTED
+    INTERRUPTED          = (11, "A polite (non-crashing) interrupt sent to Vampire (SIGINT / SIGTERM / SIGHUP / SIGXCPU), who shut up and exited immediately")
+    # VAMP_RESULT_STATUS_OTHER_SIGNAL
+    SIGNALLED            = (12, "A crashy or impolite interrupt sent to Vampire (SIGABRT / SIGFPE / SIGILL / SIGSEGV / SIGQUIT / SIGBUS), likely means a bug.")
+    # VAMP_RESULT_STATUS_UNHANDLED_EXCEPTION
+    UNHANDLED_EXCEPTION  = (13, "Unhandled exception inside Vampire (could be an assertion violations in a debug build), or user error (check the error message)")
+
+    def __init__(self, value, label):
+        self._value_ = value
+        self.label = label
+
+def code_to_result(result,code):
+    result.code = code.value
+    result.code_msg = code.label
+
+def resolve_success(out):
+    for line in out.split("\n"):
+        if line.startswith("% Termination reason:"):
+            if "Refutation" in line:
+                return Code.SUCCESS_PROOF
+            elif "Satisfiable" in line:
+                return Code.SUCCESS_SATURATION
+    return Code.UNKNOWN
+
+def resolve_failure(out):
+    for line in out.split("\n"):
+        if line.startswith("% Termination reason:"):
+            if "Time limit" in line:
+                return Code.TIME_LIMIT
+            elif "Instruction limit" in line:
+                return Code.INSTR_LIMIT
+            elif "Memory limit" in line:
+                return Code.MEMORY_LIMIT
+            elif "Activation limit" in line:
+                return Code.ACTIVATION_LIMIT
+            elif "Inappropriate" in line:
+                return Code.INAPPROPRIATE
+            elif "Unknown" in line:
+                return Code.VAMPIRES_UNKNOWN
+            elif "Refutation not found" in line:
+                return Code.INCOMPLETE_STRATEGY
+
+    return Code.UNKNOWN
+
+
 class CantParseQuestionException(Exception):
     pass
 
@@ -319,8 +382,10 @@ class VampireRunner(Node):
 
                     goal_handle.canceled()
                     result = QueryReasoner.Result()
-                    result.result = "Canceled"
-                    result.code = 2 # arbitrarily (let's define this conventions properly later)
+
+                    result.result = ""
+                    code_to_result(result,Code.CANCELLED)
+
                     return result
 
             """
@@ -335,8 +400,29 @@ class VampireRunner(Node):
             err = ''.join(drain_queue(stderr_q))
 
             result = QueryReasoner.Result()
-            result.code = solver_proc.returncode
             result.result = f"Out:\n{out}\nErr:\n{err}"
+
+            '''
+            There is the following enum in Vampire (with the first two options worth of breaking down further
+                VAMP_RESULT_STATUS_SUCCESS,
+                VAMP_RESULT_STATUS_UNKNOWN,
+                VAMP_RESULT_STATUS_OTHER_SIGNAL,
+                VAMP_RESULT_STATUS_INTERRUPTED,
+                VAMP_RESULT_STATUS_UNHANDLED_EXCEPTION
+            '''
+
+            if solver_proc.returncode == 0: # VAMP_RESULT_STATUS_SUCCESS
+                code_to_result(result,resolve_success(out))
+            elif solver_proc.returncode == 1: # VAMP_RESULT_STATUS_UNKNOWN
+                code_to_result(result,resolve_failure(out))
+            elif solver_proc.returncode == 2: # VAMP_RESULT_STATUS_OTHER_SIGNAL
+                code_to_result(result,Code.INTERRUPTED)
+            elif solver_proc.returncode == 3: # VAMP_RESULT_STATUS_INTERRUPTED
+                code_to_result(result,Code.SIGNALLED)
+            elif solver_proc.returncode == 4: # VAMP_RESULT_STATUS_UNHANDLED_EXCEPTION
+                code_to_result(result,Code.UNHANDLED_EXCEPTION)
+            else:
+                code_to_result(result,Code.UNKNOWN)
 
             if solver_proc.returncode != 0:
                 self.get_logger().info(f"Solver failed to resolve the query:\nOut:\n{out}\nErr:\n{err}")

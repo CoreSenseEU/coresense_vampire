@@ -7,13 +7,6 @@ from coresense_msgs.srv import StartSession, AddToSession, RemoveFromSession, Li
 from rclpy.action import ActionClient
 from coresense_msgs.action import QueryReasoner
 
-VAMP_CODES = [
-  "VAMP_RESULT_STATUS_SUCCESS",
-  "VAMP_RESULT_STATUS_UNKNOWN",
-  "VAMP_RESULT_STATUS_OTHER_SIGNAL",
-  "VAMP_RESULT_STATUS_INTERRUPTED",
-  "VAMP_RESULT_STATUS_UNHANDLED_EXCEPTION"]
-
 
 class SessionTester(Node):
     def __init__(self):
@@ -71,7 +64,7 @@ class SessionTester(Node):
         result = result_future.result().result
 
         self.get_logger().info(f"Reasoner result: {result.result}")
-        self.get_logger().info(f"Reasoner code: {result.code} (VAMP_CODE={VAMP_CODES[result.code]})")
+        self.get_logger().info(f"Reasoner code: {result.code}")
 
         return result
 
@@ -262,8 +255,9 @@ class SessionTester(Node):
         query = "tff(c,conjecture,?[A:j]:p(A))."
         config = "--input_syntax tptp -updr off -s 1010 -t 1"
         result = self.run_reasoner_query(session_id, query, configuration=config)
-        assert result.code == 0, f"Expected SUCCESS (0), got {VAMP_CODES[result.code]} ({result.code})"
+        assert result.code == 1, f"Expected SUCCESS_PROOF (1), got {result.code}"
         self.get_logger().info("First query succeeded as expected (with axioms).")
+        self.get_logger().info(f"The code_msg was: {result.code_msg}")
 
         # Remove the "axioms" formula set
         rm_req = RemoveFromSession.Request()
@@ -278,8 +272,9 @@ class SessionTester(Node):
 
         # Query again — should timeout/fail since the external axiom is gone
         result = self.run_reasoner_query(session_id, query, configuration=config)
-        assert result.code == 1, f"Expected UNKNOWN (1), got {VAMP_CODES[result.code]} ({result.code})"
-        self.get_logger().info("Second query returned UNKNOWN as expected (axioms removed).")
+        assert result.code == 9, f"Expected INCOMPLETE_STRATEGY (9), got {result.code}"
+        self.get_logger().info("Second query returned INCOMPLETE_STRATEGY as expected (axioms removed).")
+        self.get_logger().info(f"The code_msg was: {result.code_msg}")
 
 
 def main():
