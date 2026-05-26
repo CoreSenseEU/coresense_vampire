@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from coresense_msgs.srv import StartSession, AddToSession, RemoveFromSession, ListSession, GetSolution
+from coresense_msgs.srv import StartSession, AddToSession, RemoveFromSession, ListSession, GetSolution, EndSession
 
 from rclpy.action import ActionClient
 from coresense_msgs.action import QueryReasoner
@@ -275,6 +275,21 @@ class SessionTester(Node):
         assert result.code == 9, f"Expected INCOMPLETE_STRATEGY (9), got {result.code}"
         self.get_logger().info("Second query returned INCOMPLETE_STRATEGY as expected (axioms removed).")
         self.get_logger().info(f"The code_msg was: {result.code_msg}")
+
+        # --- EndSession tests ---
+
+        # Fail: try to end a non-existent session
+        end_req = EndSession.Request()
+        end_req.session_id = "nonexistent"
+        end_res = self.call_service(EndSession, '/end_session', end_req)
+        assert not end_res.success, "Expected failure when ending non-existent session"
+        self.get_logger().info("EndSession correctly rejected non-existent session.")
+
+        # Success: end the real session
+        end_req.session_id = session_id
+        end_res = self.call_service(EndSession, '/end_session', end_req)
+        assert end_res.success, "Expected success when ending idle session"
+        self.get_logger().info(f"EndSession succeeded for {session_id}.")
 
 
 def main():

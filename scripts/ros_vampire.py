@@ -8,7 +8,7 @@ import time
 import select
 import queue, threading
 
-from coresense_msgs.srv import StartSession, AddToSession, RemoveFromSession, ListSession, GetSolution, VampireExternalPredicate
+from coresense_msgs.srv import StartSession, AddToSession, RemoveFromSession, ListSession, GetSolution, VampireExternalPredicate, EndSession
 from coresense_msgs.action import QueryReasoner
 
 import os, socket
@@ -157,6 +157,8 @@ class VampireRunner(Node):
 
         self.sessions = {}      # session_id -> {formula_set_id -> list of strings}
         self.solutions = {}     # session_id -> string
+        self.active_sessions = set()       # session_ids with in-flight queries
+        self.active_sessions_lock = threading.Lock()
 
         # Services
         self.start_srv = self.create_service(StartSession, 'start_session', self.start_session_cb)
@@ -164,6 +166,7 @@ class VampireRunner(Node):
         self.remove_srv = self.create_service(RemoveFromSession, 'remove_from_session', self.remove_from_session_cb)
         self.list_srv = self.create_service(ListSession, 'list_session', self.list_session_cb)
         self.get_sol_srv = self.create_service(GetSolution, 'get_solution', self.get_solution_cb)
+        self.end_srv = self.create_service(EndSession, 'end_session', self.end_session_cb)
 
         # Action
         self.solve_action = ActionServer(
@@ -235,6 +238,23 @@ class VampireRunner(Node):
             self.get_logger().info(f"Get solution called for session {sid}.")
         return response
 
+    def end_session_cb(self, request, response):
+        sid = request.session_id
+        with self.active_sessions_lock:
+            if sid in self.active_sessions:
+                self.get_logger().info(f"Cannot end session {sid}: query in progress")
+                response.success = False
+                return response
+            if sid not in self.sessions:
+                self.get_logger().info(f"Cannot end session {sid}: not found")
+                response.success = False
+                return response
+            del self.sessions[sid]
+        self.solutions.pop(sid, None)
+        self.get_logger().info(f"Ended session {sid}")
+        response.success = True
+        return response
+
     # ---- Actions ----
     def goal_cb(self, goal_request):
         self.get_logger().info(f"Received goal for session {goal_request.session_id}")
@@ -274,6 +294,15 @@ class VampireRunner(Node):
 
     def execute_solve_cb(self, goal_handle):
         sid = goal_handle.request.session_id
+        with self.active_sessions_lock:
+            self.active_sessions.add(sid)
+        try:
+            return self._execute_solve_inner(goal_handle, sid)
+        finally:
+            with self.active_sessions_lock:
+                self.active_sessions.discard(sid)
+
+    def _execute_solve_inner(self, goal_handle, sid):
         goal_handle.publish_feedback(QueryReasoner.Feedback(status=f"Launching solver for {sid}..."))
 
         prefix = get_package_prefix('coresense_vampire')
