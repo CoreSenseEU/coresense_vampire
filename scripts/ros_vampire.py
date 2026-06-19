@@ -161,18 +161,18 @@ class VampireRunner(Node):
         self.active_sessions_lock = threading.Lock()
 
         # Services
-        self.start_srv = self.create_service(StartSession, 'start_session', self.start_session_cb)
-        self.add_srv = self.create_service(AddToSession, 'add_to_session', self.add_to_session_cb)
-        self.remove_srv = self.create_service(RemoveFromSession, 'remove_from_session', self.remove_from_session_cb)
-        self.list_srv = self.create_service(ListSession, 'list_session', self.list_session_cb)
-        self.get_sol_srv = self.create_service(GetSolution, 'get_solution', self.get_solution_cb)
-        self.end_srv = self.create_service(EndSession, 'end_session', self.end_session_cb)
+        self.start_srv = self.create_service(StartSession, '/vampire/start_session', self.start_session_cb)
+        self.add_srv = self.create_service(AddToSession, '/vampire/add_to_session', self.add_to_session_cb)
+        self.remove_srv = self.create_service(RemoveFromSession, '/vampire/remove_from_session', self.remove_from_session_cb)
+        self.list_srv = self.create_service(ListSession, '/vampire/list_session', self.list_session_cb)
+        self.get_sol_srv = self.create_service(GetSolution, '/vampire/get_solution', self.get_solution_cb)
+        self.end_srv = self.create_service(EndSession, '/vampire/end_session', self.end_session_cb)
 
         # Action
         self.solve_action = ActionServer(
             self,
             QueryReasoner,
-            'query_reasoner',
+            '/vampire/query',
             execute_callback=self.execute_solve_cb,
             goal_callback=self.goal_cb,
             cancel_callback=self.cancel_cb
@@ -195,7 +195,8 @@ class VampireRunner(Node):
             response.success = False
             return response
         fsid = request.formula_set_id
-        self.get_logger().info(f"Adding to session {sid}, formula_set '{fsid}'. Formulas:\n{request.tptp}")
+        self.get_logger().info(f"Adding to session {sid}, formula_set '{fsid}'.")
+        self.get_logger().debug(f"Formulas:\n{request.tptp}")
         if fsid not in self.sessions[sid]:
             self.sessions[sid][fsid] = []
         self.sessions[sid][fsid].append(request.tptp)
