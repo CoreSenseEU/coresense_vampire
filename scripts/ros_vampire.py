@@ -80,6 +80,20 @@ def resolve_failure(out):
 class CantParseQuestionException(Exception):
     pass
 
+def _skip_quoted(s, i, quote_char):
+    """Advance i past the closing quote_char, respecting backslash escapes.
+    i should point to the opening quote. Returns index of the closing quote."""
+    i += 1  # skip opening quote
+    while i < len(s):
+        if s[i] == '\\':
+            i += 2  # skip escaped char
+        elif s[i] == quote_char:
+            return i  # caller will i += 1 in the main loop
+        else:
+            i += 1
+    raise CantParseQuestionException(
+        f"Unterminated {quote_char}-quoted string in: {s}")
+
 def process_tptp_question(tptp_question):
     """
         A tptp question can look like this: p(a,X0,b), or could even contain nested subterms: q(f(a,f(b,c)),Y)
@@ -103,14 +117,18 @@ def process_tptp_question(tptp_question):
 
     while i < len(tptp_question):
       if state == 0: # reading pred, waiting for "("
-        if tptp_question[i] == "(":
+        if tptp_question[i] in ("'", '"'):
+          i = _skip_quoted(tptp_question, i, tptp_question[i])
+        elif tptp_question[i] == "(":
           predname = tptp_question[:i]
           if not len(predname):
               raise CantParseQuestionException(f"Question {tptp_question} had an empty predicate name!")
           state = 1
           last_mark = i+1
       elif state == 1:
-        if tptp_question[i] == "(":
+        if tptp_question[i] in ("'", '"'):
+          i = _skip_quoted(tptp_question, i, tptp_question[i])
+        elif tptp_question[i] == "(":
           depth += 1
         elif tptp_question[i] == ")":
           if depth > 0:
