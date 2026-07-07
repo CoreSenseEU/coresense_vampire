@@ -307,7 +307,7 @@ class VampireRunner(Node):
         goal_handle.publish_feedback(QueryReasoner.Feedback(status=f"Launching solver for {sid}..."))
 
         prefix = get_package_prefix('coresense_vampire')
-        exe = os.path.join(prefix, 'lib', 'coresense_vampire', 'vampire_z3_rel_static_martin-xdb-coresense_10527')
+        exe = os.path.join(prefix, 'lib', 'coresense_vampire', 'vampire_z3_rel_static_martin-xdb-coresense_10529')
 
         parent_sock, child_sock = socket.socketpair(socket.AF_UNIX)
         sock_file = parent_sock.makefile("rwb", buffering=0)
