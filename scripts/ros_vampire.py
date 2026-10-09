@@ -151,7 +151,7 @@ def process_tptp_question(tptp_question):
     return predname, args
 
 def create_tptp_answer(predname, answer_args):
-    return f"{predname}({",".join(answer_args)})"
+    return f"{predname}({','.join(answer_args)})"
 
 def stream_reader(pipe, output_queue):
     try:
