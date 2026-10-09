@@ -385,8 +385,10 @@ class VampireRunner(Node):
                         self.get_logger().info(f"Received: {msg}")
 
                         answers = [] # vampire is waiting; will answer "nothing" if the actual source fails to deliver
+                        args = []    # stays empty if the question can't be parsed
                         try:
-                            service_name,tptp_question = msg.split()
+                            # the question itself may contain spaces (e.g., in quoted constants)
+                            service_name,tptp_question = msg.split(maxsplit=1)
                             predname, args = process_tptp_question(tptp_question)
 
                             try:
@@ -394,16 +396,18 @@ class VampireRunner(Node):
                             except Exception as e:
                                 self.get_logger().warning(f"Exception during external service call: {e}")
 
-                        except CantParseQuestionException:
-                            self.get_logger().warning(f"Couldn't parse tptp question: '{tptp_question}'. Will pretend the source has no answers.")
+                        except (ValueError, CantParseQuestionException):
+                            self.get_logger().warning(f"Couldn't parse external question: '{msg}'. Will pretend the source has no answers.")
 
                         try:
-                            if len(answers) % len(args) != 0:
+                            if not args:
+                                answers = []
+                            elif len(answers) % len(args) != 0:
                                 self.get_logger().warning(f"Number of provided answer slots does not devide question predicate's arity!")
 
-                            num_lines = len(answers) // len(args)
+                            num_lines = len(answers) // len(args) if args else 0
                             self.get_logger().info(f"Sending back {num_lines} answer lines:")
-                            while len(answers) >= len(args):
+                            while args and len(answers) >= len(args):
                                 answer_args = answers[0:len(args)]
                                 answers = answers[len(args):]
 
