@@ -138,13 +138,15 @@ class SessionTester(Node):
         for formula in formulas:
             req = AddToSession.Request()
             req.session_id = sid1
-            req.formula = formula
+            req.tptp = formula
+            req.formula_set_id = "base"
             self.call_service(AddToSession, '/vampire/add_to_session', req)
 
         for formula in formulas:
             req = AddToSession.Request()
             req.session_id = sid2
-            req.formula = formula
+            req.tptp = formula
+            req.formula_set_id = "base"
             self.call_service(AddToSession, '/vampire/add_to_session', req)
 
         # --------------------------------------------------------
