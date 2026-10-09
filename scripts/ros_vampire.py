@@ -464,9 +464,9 @@ class VampireRunner(Node):
             elif solver_proc.returncode == 1: # VAMP_RESULT_STATUS_UNKNOWN
                 code_to_result(result,resolve_failure(out))
             elif solver_proc.returncode == 2: # VAMP_RESULT_STATUS_OTHER_SIGNAL
-                code_to_result(result,Code.INTERRUPTED)
-            elif solver_proc.returncode == 3: # VAMP_RESULT_STATUS_INTERRUPTED
                 code_to_result(result,Code.SIGNALLED)
+            elif solver_proc.returncode == 3: # VAMP_RESULT_STATUS_INTERRUPTED
+                code_to_result(result,Code.INTERRUPTED)
             elif solver_proc.returncode == 4: # VAMP_RESULT_STATUS_UNHANDLED_EXCEPTION
                 code_to_result(result,Code.UNHANDLED_EXCEPTION)
             else:
