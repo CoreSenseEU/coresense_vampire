@@ -26,7 +26,7 @@ class SessionTester(Node):
         Call the QueryReasoner action and wait for the result.
         """
 
-        action_client = ActionClient(self, QueryReasoner, '/query_reasoner')
+        action_client = ActionClient(self, QueryReasoner, '/vampire/query')
 
         self.get_logger().info("Waiting for QueryReasoner action server...")
         action_client.wait_for_server()
@@ -71,7 +71,7 @@ class SessionTester(Node):
     def run_get_solution(self, session_id):
         solution_req = GetSolution.Request()
         solution_req.session_id = session_id
-        solution_res = self.call_service(GetSolution, '/get_solution', solution_req)
+        solution_res = self.call_service(GetSolution, '/vampire/get_solution', solution_req)
 
         if solution_res.success:
             self.get_logger().info(f"Get solution for session {session_id} successful and returned:\n{solution_res.solution}")
@@ -81,7 +81,7 @@ class SessionTester(Node):
     def run(self):
         # Start session
         start_req = StartSession.Request()
-        start_res = self.call_service(StartSession, '/start_session', start_req)
+        start_res = self.call_service(StartSession, '/vampire/start_session', start_req)
 
         session_id = start_res.session_id
         self.get_logger().info(f"Session ID: {session_id}")
@@ -99,13 +99,13 @@ class SessionTester(Node):
             add_req.tptp = formula
             add_req.formula_set_id = "base"
 
-            add_res = self.call_service(AddToSession, '/add_to_session', add_req)
+            add_res = self.call_service(AddToSession, '/vampire/add_to_session', add_req)
             self.get_logger().info(f"Added formula '{formula}': {add_res.success}")
 
         # List session
         list_req = ListSession.Request()
         list_req.session_id = session_id
-        list_res = self.call_service(ListSession, '/list_session', list_req)
+        list_res = self.call_service(ListSession, '/vampire/list_session', list_req)
         self.get_logger().info(f"Session contents: {list_res.formulas}")
 
         self.run_get_solution(session_id)
@@ -121,8 +121,8 @@ class SessionTester(Node):
         # --------------------------------------------------------
         # Create TWO sessions
         # --------------------------------------------------------
-        start1 = self.call_service(StartSession, '/start_session', StartSession.Request())
-        start2 = self.call_service(StartSession, '/start_session', StartSession.Request())
+        start1 = self.call_service(StartSession, '/vampire/start_session', StartSession.Request())
+        start2 = self.call_service(StartSession, '/vampire/start_session', StartSession.Request())
 
         sid1 = start1.session_id
         sid2 = start2.session_id
@@ -139,13 +139,13 @@ class SessionTester(Node):
             req = AddToSession.Request()
             req.session_id = sid1
             req.formula = formula
-            self.call_service(AddToSession, '/add_to_session', req)
+            self.call_service(AddToSession, '/vampire/add_to_session', req)
 
         for formula in formulas:
             req = AddToSession.Request()
             req.session_id = sid2
             req.formula = formula
-            self.call_service(AddToSession, '/add_to_session', req)
+            self.call_service(AddToSession, '/vampire/add_to_session', req)
 
         # --------------------------------------------------------
         # Check list contents
@@ -153,7 +153,7 @@ class SessionTester(Node):
         def show_contents(sid):
             list_req = ListSession.Request()
             list_req.session_id = sid
-            res = self.call_service(ListSession, '/list_session', list_req)
+            res = self.call_service(ListSession, '/vampire/list_session', list_req)
             self.get_logger().info(f"[{sid}] contents: {res.formulas}")
 
         show_contents(sid1)
@@ -165,8 +165,8 @@ class SessionTester(Node):
         self.get_logger().info("Running QueryReasoner on BOTH sessions in parallel...")
 
         # Create two action clients (can reuse or create fresh)
-        client1 = ActionClient(self, QueryReasoner, '/query_reasoner')
-        client2 = ActionClient(self, QueryReasoner, '/query_reasoner')
+        client1 = ActionClient(self, QueryReasoner, '/vampire/query')
+        client2 = ActionClient(self, QueryReasoner, '/vampire/query')
 
         client1.wait_for_server()
         client2.wait_for_server()
@@ -220,7 +220,7 @@ class SessionTester(Node):
 
     def run_formula_sets(self):
         # Start session
-        start_res = self.call_service(StartSession, '/start_session', StartSession.Request())
+        start_res = self.call_service(StartSession, '/vampire/start_session', StartSession.Request())
         session_id = start_res.session_id
         self.get_logger().info(f"Session ID: {session_id}")
 
@@ -233,7 +233,7 @@ class SessionTester(Node):
             req.session_id = session_id
             req.tptp = formula
             req.formula_set_id = "types"
-            res = self.call_service(AddToSession, '/add_to_session', req)
+            res = self.call_service(AddToSession, '/vampire/add_to_session', req)
             self.get_logger().info(f"Added to 'types': '{formula}': {res.success}")
 
         # Add external axiom under "axioms" formula set
@@ -242,13 +242,13 @@ class SessionTester(Node):
         req.session_id = session_id
         req.tptp = axiom
         req.formula_set_id = "axioms"
-        res = self.call_service(AddToSession, '/add_to_session', req)
+        res = self.call_service(AddToSession, '/vampire/add_to_session', req)
         self.get_logger().info(f"Added to 'axioms': '{axiom}': {res.success}")
 
         # List session — should contain all 3 formulas
         list_req = ListSession.Request()
         list_req.session_id = session_id
-        list_res = self.call_service(ListSession, '/list_session', list_req)
+        list_res = self.call_service(ListSession, '/vampire/list_session', list_req)
         self.get_logger().info(f"Session contents (all sets): {list_res.formulas}")
 
         # Query — should succeed with the external axiom present
@@ -263,11 +263,11 @@ class SessionTester(Node):
         rm_req = RemoveFromSession.Request()
         rm_req.session_id = session_id
         rm_req.formula_set_id = "axioms"
-        rm_res = self.call_service(RemoveFromSession, '/remove_from_session', rm_req)
+        rm_res = self.call_service(RemoveFromSession, '/vampire/remove_from_session', rm_req)
         self.get_logger().info(f"Removed 'axioms' formula set: {rm_res.success}")
 
         # List session — should only have the type declarations
-        list_res = self.call_service(ListSession, '/list_session', list_req)
+        list_res = self.call_service(ListSession, '/vampire/list_session', list_req)
         self.get_logger().info(f"Session contents (after removal): {list_res.formulas}")
 
         # Query again — should timeout/fail since the external axiom is gone
@@ -281,13 +281,13 @@ class SessionTester(Node):
         # Fail: try to end a non-existent session
         end_req = EndSession.Request()
         end_req.session_id = "nonexistent"
-        end_res = self.call_service(EndSession, '/end_session', end_req)
+        end_res = self.call_service(EndSession, '/vampire/end_session', end_req)
         assert not end_res.success, "Expected failure when ending non-existent session"
         self.get_logger().info("EndSession correctly rejected non-existent session.")
 
         # Success: end the real session
         end_req.session_id = session_id
-        end_res = self.call_service(EndSession, '/end_session', end_req)
+        end_res = self.call_service(EndSession, '/vampire/end_session', end_req)
         assert end_res.success, "Expected success when ending idle session"
         self.get_logger().info(f"EndSession succeeded for {session_id}.")
 
