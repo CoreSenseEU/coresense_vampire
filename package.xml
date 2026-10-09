@@ -3,8 +3,8 @@
 <package format="3">
   <name>coresense_vampire</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="martin-suda@todo.todo">martin-suda</maintainer>
+  <description>ROS 2 wrapper of the Vampire automated theorem prover: a reasoning node with TPTP knowledge sessions, a cancellable query action, and external predicates answered by ROS 2 services.</description>
+  <maintainer email="martin.suda@cvut.cz">Martin Suda</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake_python</buildtool_depend>
